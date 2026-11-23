@@ -12,10 +12,40 @@ function loadHours(cards) {
     var chunk = cards.slice(i, i + 50); i += 50;
     if (!chunk.length) return Promise.resolve(out);
     return Promise.all(chunk.map(function (c) {
-      return t.get(c.id, 'shared', HOURS_KEY).then(function (h) { return effectiveHours(h, c.desc); }).then(function (h) { c.hours = h; delete c.desc; out.push(c); });
+      return t.get(c.id, 'shared', HOURS_KEY).then(function (own) {
+        c.own = typeof own === 'number' ? own : null;
+        return effectiveHours(own, c.desc);
+      }).then(function (h) { c.hours = h; delete c.desc; out.push(c); });
     })).then(next);
   }
   return next();
+}
+
+// Copy Planyway estimates into this Power-Up's own data (only where it has none yet), so they survive removing Planyway.
+function saveToOwn() {
+  var todo = state.cards.filter(function (c) { return c.own == null && c.hours != null; });
+  var box = document.getElementById('saveStatus');
+  if (!todo.length) { box.className = 'ok muted'; box.textContent = 'Все оценки этой доски хранятся в улучшении ✓'; return Promise.resolve(); }
+  var done = 0, failed = 0, i = 0;
+  box.className = 'muted';
+  function show() { box.textContent = 'Сохраняю оценки Planyway в улучшение: ' + done + ' из ' + todo.length + '… Не закрывайте окно.'; }
+  function setRetry(c, n) {
+    return t.set(c.id, 'shared', HOURS_KEY, c.hours).catch(function (e) {
+      if (n >= 4) throw e;
+      return new Promise(function (r) { setTimeout(r, 1000 * Math.pow(2, n)); }).then(function () { return setRetry(c, n + 1); });
+    });
+  }
+  function worker() {
+    if (i >= todo.length) return Promise.resolve();
+    var c = todo[i++];
+    return setRetry(c, 0).then(function () { c.own = c.hours; }, function () { failed++; })
+      .then(function () { done++; show(); return new Promise(function (r) { setTimeout(r, 150); }); }).then(worker);
+  }
+  show();
+  return Promise.all([worker(), worker(), worker()]).then(function () {
+    if (failed) { box.className = 'error muted'; box.textContent = 'Сохранено ' + (todo.length - failed) + ' из ' + todo.length + '. Откройте «Часы: итог» ещё раз — остальные допишутся.'; }
+    else { box.className = 'ok muted'; box.textContent = 'Сохранено ' + todo.length + ' оценок Planyway. Все оценки этой доски хранятся в улучшении ✓'; }
+  });
 }
 
 function groupSum(cards, keysOf, emptyName) {
@@ -127,5 +157,6 @@ Promise.all([t.lists('id', 'name'), t.cards('id', 'name', 'idList', 'labels', 'm
     document.getElementById('status').hidden = true;
     document.getElementById('app').hidden = false;
     render();
+    var perm = t.getContext && t.getContext().permissions; return perm && perm.board && perm.board !== 'write' ? null : saveToOwn();
   })
   .catch(function (e) { var s = document.getElementById('status'); s.textContent = 'Ошибка загрузки: ' + (e && e.message || e); s.className = 'error'; });
