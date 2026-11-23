@@ -21,3 +21,6 @@ tr.clickable { cursor:pointer; } tr.clickable:hover td { background:var(--bg); }
 .cols { display:grid; grid-template-columns:1fr 1fr; gap:16px; } @media (max-width:640px) { .cols { grid-template-columns:1fr; } }
 .box { background:var(--bg); border-radius:4px; padding:8px 12px; margin:8px 0; }
 progress { width:100%; }
+.checks { display:flex; flex-wrap:wrap; gap:4px 16px; margin:4px 0 8px; }
+.checks label { display:flex; align-items:center; gap:6px; font-weight:400; font-size:14px; color:var(--text); margin:0; cursor:pointer; }
+.hideList .colList { display:none; }

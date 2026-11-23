@@ -1,7 +1,7 @@
 /* global TrelloPowerUp, HOURS_KEY, fmtHoursRu */
 var t = TrelloPowerUp.iframe();
 var MAX_LISTS = 10;
-var state = { lists: [], cards: [], selected: null, log: [] };
+var state = { lists: [], cards: [], selected: [], log: [] };
 
 function el(tag, text, cls) { var e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; }
 function labelName(l) { return l.name || ('(' + (l.color || 'без цвета') + ')'); }
@@ -83,14 +83,19 @@ function render() {
   var totals = listTotals().slice(0, MAX_LISTS);
   var allCount = 0, allSum = 0;
   var rows = totals.map(function (x) { allCount += x.count; allSum += x.sum; return { key: x.list.id, cells: [x.list.name, String(x.count), fmtHoursRu(x.sum)], numCols: [1] }; });
-  fillRows(document.querySelector('#lists tbody'), rows, select, state.selected);
+  fillRows(document.querySelector('#lists tbody'), rows, function (id) { select([id]); }, state.selected.length === 1 ? state.selected[0] : null);
 
-  var sel = document.getElementById('listSel');
-  if (!sel.options.length) {
-    state.lists.forEach(function (l) { var o = el('option', l.name); o.value = l.id; sel.appendChild(o); });
-    sel.onchange = function () { select(sel.value); };
+  var box = document.getElementById('listChecks');
+  if (!box.children.length) {
+    state.lists.forEach(function (l) {
+      var lab = el('label'), cb = el('input'); cb.type = 'checkbox'; cb.value = l.id;
+      cb.onchange = function () { select(Array.prototype.filter.call(box.querySelectorAll('input'), function (x) { return x.checked; }).map(function (x) { return x.value; })); };
+      lab.appendChild(cb); lab.appendChild(document.createTextNode(l.name)); box.appendChild(lab);
+    });
   }
-  sel.value = state.selected;
+  Array.prototype.forEach.call(box.querySelectorAll('input'), function (x) { x.checked = state.selected.indexOf(x.value) >= 0; });
+  var multi = state.selected.length > 1;
+  document.getElementById('cards').classList.toggle('hideList', !multi);
 
   var cs = selectedCards();
   var rated = cs.filter(function (c) { return c.hours != null; });
@@ -103,19 +108,22 @@ function render() {
   var tbody = document.querySelector('#cards tbody'); tbody.textContent = '';
   cs.forEach(function (c) {
     var tr = el('tr'), a = el('a', c.name); a.href = c.url; a.onclick = function (e) { e.preventDefault(); t.showCard(c.id); };
+    tr.appendChild(el('td', listName(c.idList), 'colList'));
     var td = el('td'); td.appendChild(a); tr.appendChild(td);
     tr.appendChild(el('td', (c.labels || []).map(labelName).join(', ')));
     tr.appendChild(el('td', (c.members || []).map(memberName).join(', ')));
     tr.appendChild(el('td', fmtHoursRu(c.hours || 0), 'num'));
     tbody.appendChild(tr);
   });
-  var tot = el('tr', null, 'total'); tot.appendChild(el('td', 'Итого: ' + cs.length)); tot.appendChild(el('td')); tot.appendChild(el('td')); tot.appendChild(el('td', fmtHoursRu(sum), 'num'));
+  var tot = el('tr', null, 'total'); tot.appendChild(el('td', null, 'colList')); tot.appendChild(el('td', 'Итого: ' + cs.length)); tot.appendChild(el('td')); tot.appendChild(el('td')); tot.appendChild(el('td', fmtHoursRu(sum), 'num'));
   tbody.appendChild(tot);
 }
 
+function listIndex(id) { for (var i = 0; i < state.lists.length; i++) if (state.lists[i].id === id) return i; return -1; }
+function listName(id) { var i = listIndex(id); return i >= 0 ? state.lists[i].name : ''; }
 function selectedCards() {
-  return state.cards.filter(function (c) { return c.idList === state.selected; })
-    .sort(function (a, b) { return (b.hours || 0) - (a.hours || 0); });
+  return state.cards.filter(function (c) { return state.selected.indexOf(c.idList) >= 0; })
+    .sort(function (a, b) { return listIndex(a.idList) - listIndex(b.idList) || (b.hours || 0) - (a.hours || 0); });
 }
 
 function renderLog() {
@@ -133,7 +141,8 @@ function renderLog() {
   });
 }
 
-function select(id) { state.selected = id; render(); }
+function select(ids) { state.selected = ids; render(); }
+document.getElementById('checkNone').onclick = function () { select([]); };
 
 function toTSV(rows) {
   return rows.map(function (r) { return r.map(function (v) { return String(v).replace(/[\t\n\r]+/g, ' '); }).join('\t'); }).join('\n');
@@ -160,9 +169,10 @@ document.getElementById('copyLists').onclick = function () {
 };
 document.getElementById('copyCards').onclick = function () {
   var cs = selectedCards();
-  var rows = [['Карточка', 'Метки', 'Участники', 'Часы', 'Ссылка']];
-  cs.forEach(function (c) { rows.push([c.name, (c.labels || []).map(labelName).join(', '), (c.members || []).map(memberName).join(', '), fmtHoursRu(c.hours || 0), c.url]); });
-  rows.push(['Итого', '', '', fmtHoursRu(cs.reduce(function (s, c) { return s + (c.hours || 0); }, 0)), '']);
+  var multi = state.selected.length > 1;
+  var rows = [(multi ? ['Колонка'] : []).concat(['Карточка', 'Метки', 'Участники', 'Часы', 'Ссылка'])];
+  cs.forEach(function (c) { rows.push((multi ? [listName(c.idList)] : []).concat([c.name, (c.labels || []).map(labelName).join(', '), (c.members || []).map(memberName).join(', '), fmtHoursRu(c.hours || 0), c.url])); });
+  rows.push((multi ? [''] : []).concat(['Итого', '', '', fmtHoursRu(cs.reduce(function (s, c) { return s + (c.hours || 0); }, 0)), '']));
   copy(toTSV(rows), 'copyCardsMsg');
 };
 
@@ -173,7 +183,7 @@ Promise.all([t.lists('id', 'name'), t.cards('id', 'name', 'idList', 'labels', 'm
   })
   .then(function () {
     var withHours = listTotals().filter(function (x) { return x.count; });
-    state.selected = (withHours[0] || { list: state.lists[0] || {} }).list.id;
+    state.selected = [(withHours[0] || { list: state.lists[0] || {} }).list.id];
     document.getElementById('status').hidden = true;
     document.getElementById('app').hidden = false;
     render();
