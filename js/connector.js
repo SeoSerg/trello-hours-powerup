@@ -23,13 +23,15 @@ TrelloPowerUp.initialize({
   'card-badges': function (t) {
     return cardHours(t).then(function (h) {
       if (h == null) return [];
-      return [{ text: '⏳ ' + fmtHours(h) + 'h' }];
+      return [{ icon: ICON, text: fmtHours(h) + 'h' }];
     }, function () { return []; });
   },
   'card-detail-badges': function (t) {
     return cardHours(t).then(function (h) {
       var has = h != null;
-      return [{ title: 'Часы', text: has ? fmtHours(h) + 'h' : 'Добавить', color: has ? null : 'light-gray', callback: openEditor }];
+      var b = { title: 'Часы', text: has ? fmtHours(h) + 'h' : 'Добавить', callback: openEditor };
+      if (!has) b.color = 'light-gray';
+      return [b];
     }, function (e) {
       return [{ title: 'Часы', text: 'ошибка: ' + String(e && e.message || e).slice(0, 80), color: 'red', callback: openEditor }];
     });
