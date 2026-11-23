@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>Часы</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://p.trellocdn.com/power-up.min.js"></script></head>
+<body>
+<form id="f">
+  <label for="h">Часы на карточке</label>
+  <input type="text" id="h" inputmode="decimal" autocomplete="off" placeholder="например, 2.5">
+  <div id="err" class="error muted" style="min-height:18px"></div>
+  <div class="row"><button class="primary" type="submit">Сохранить</button><span class="muted">Пустое поле — удалить часы</span></div>
+</form>
+<script src="js/common.js"></script>
+<script>
+var t = TrelloPowerUp.iframe();
+var input = document.getElementById('h'), err = document.getElementById('err');
+t.render(function () {
+  return t.get('card', 'shared', HOURS_KEY).then(function (h) {
+    if (document.activeElement !== input) { input.value = typeof h === 'number' ? fmtHours(h) : ''; input.focus(); input.select(); }
+    return t.sizeTo('#f');
+  });
+});
+document.getElementById('f').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var v = parseHours(input.value);
+  if (Number.isNaN(v)) { err.textContent = 'Введите число, например 8 или 2.5'; return; }
+  var p = v === null ? t.remove('card', 'shared', HOURS_KEY) : t.set('card', 'shared', HOURS_KEY, v);
+  p.then(function () { return t.closePopup(); }, function (x) { err.textContent = 'Не удалось сохранить: ' + (x && x.message || x); });
+});
+</script>
+</body></html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>Импорт часов</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://p.trellocdn.com/power-up.min.js"></script></head>
+<body>
+<div id="step1">
+  <p>Вставьте JSON вида <code>{"idКарточки": часы}</code> или выберите файл. Пишутся только часы этого улучшения; описания карточек и данные Planyway не меняются.</p>
+  <div class="row" style="margin-bottom:8px"><input type="file" id="file" accept=".json,application/json"></div>
+  <textarea id="json" placeholder='{"6aff16c73f372c1b2a97d8a5": 22}'></textarea>
+  <div id="err1" class="error"></div>
+  <div class="row" style="margin-top:8px"><button id="check" class="primary">Проверить</button></div>
+</div>
+
+<div id="step2" hidden>
+  <h2>Что будет сделано на этой доске</h2>
+  <div class="box" id="plan"></div>
+  <label style="font-weight:400;color:inherit;font-size:14px" id="overwriteWrap"><input type="checkbox" id="overwrite"> Перезаписать карточки, где уже стоят другие часы</label>
+  <div id="conflicts"></div>
+  <details style="margin:8px 0"><summary>Резервная копия текущих часов на доске</summary>
+    <p class="muted">Сохраните этот текст. Если что-то пойдёт не так, его можно вставить сюда же и вернуть прежние значения.</p>
+    <textarea id="backup" readonly></textarea></details>
+  <div class="row"><button id="run" class="primary">Записать</button><button id="back">Назад</button></div>
+</div>
+
+<div id="step3" hidden>
+  <h2>Запись</h2>
+  <progress id="prog" value="0" max="1"></progress>
+  <div id="progText" class="muted"></div>
+  <div id="result"></div>
+</div>
+<script src="js/common.js"></script>
+<script src="js/import.js"></script>
+</body></html>
