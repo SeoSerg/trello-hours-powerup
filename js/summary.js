@@ -49,7 +49,6 @@ function render() {
   var totals = listTotals();
   var allCount = 0, allSum = 0;
   var rows = totals.map(function (x) { allCount += x.count; allSum += x.sum; return { key: x.list.id, cells: [x.list.name, String(x.count), fmtHoursRu(x.sum)], numCols: [1] }; });
-  rows.push({ total: true, cells: ['Итого', String(allCount), fmtHoursRu(allSum)], numCols: [1] });
   fillRows(document.querySelector('#lists tbody'), rows, select, state.selected);
 
   var sel = document.getElementById('listSel');
@@ -107,7 +106,6 @@ document.getElementById('copyLists').onclick = function () {
   var rows = [['Колонка', 'Карточек с часами', 'Часы']];
   var c = 0, s = 0;
   listTotals().forEach(function (x) { c += x.count; s += x.sum; rows.push([x.list.name, x.count, fmtHoursRu(x.sum)]); });
-  rows.push(['Итого', c, fmtHoursRu(s)]);
   copy(toTSV(rows), 'copyListsMsg');
 };
 document.getElementById('copyCards').onclick = function () {
