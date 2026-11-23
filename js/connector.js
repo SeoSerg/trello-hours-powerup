@@ -1,10 +1,18 @@
 /* global TrelloPowerUp, HOURS_KEY, fmtHours */
 var ICON = new URL('./icon.svg', window.location.href).href;
 
+function withTimeout(p, ms, label) {
+  return Promise.race([Promise.resolve(p), new Promise(function (_, rej) { setTimeout(function () { rej(new Error('завис: ' + label)); }, ms); })]);
+}
+
 function cardHours(t) {
   if (typeof effectiveHours !== 'function') return Promise.reject(new Error('старая версия файлов, обновите страницу'));
-  return Promise.all([t.get('card', 'shared', HOURS_KEY), t.card('desc')])
-    .then(function (r) { return effectiveHours(r[0], r[1].desc); });
+  return withTimeout(t.get('card', 'shared', HOURS_KEY), 4000, 't.get').then(function (own) {
+    if (typeof own === 'number') return own > 0 ? own : null;
+    return withTimeout(t.card('desc'), 4000, 't.card').then(function (c) {
+      return withTimeout(planywayHours(c && c.desc), 4000, 'decode');
+    });
+  });
 }
 
 function openEditor(t) {
