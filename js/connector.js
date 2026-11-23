@@ -26,9 +26,7 @@ TrelloPowerUp.initialize({
   'board-buttons': function () {
     return [
       { icon: { dark: ICON, light: ICON }, text: 'Часы: итог', condition: 'always',
-        callback: function (t) { return t.modal({ title: 'Часы: итог', url: './summary.html', fullscreen: false, height: 600 }); } },
-      { icon: { dark: ICON, light: ICON }, text: 'Импорт часов', condition: 'edit',
-        callback: function (t) { return t.modal({ title: 'Импорт часов', url: './import.html', height: 560 }); } }
+        callback: function (t) { return t.modal({ title: 'Часы: итог', url: './summary.html', fullscreen: false, height: 600 }); } }
     ];
   }
 });
