@@ -16,3 +16,31 @@ function fmtHours(n) {
 function fmtHoursRu(n) {
   return fmtHours(n).replace('.', ',');
 }
+
+// Planyway keeps its estimate in a link in the card description (zlib + base64 JSON, customData.estimationHours).
+// We only READ it. Cached by description text.
+var _pwCache = new Map();
+function planywayHours(desc) {
+  var m = (desc || '').match(/planyway\.com\/?\?cardData=([A-Za-z0-9+/=_%-]+)/);
+  if (!m) return Promise.resolve(null);
+  if (_pwCache.has(m[1])) return _pwCache.get(m[1]);
+  var p;
+  try {
+    var b64 = decodeURIComponent(m[1]).replace(/-/g, '+').replace(/_/g, '/');
+    var bin = atob(b64), bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    var stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
+    p = new Response(stream).text().then(function (s) {
+      var h = JSON.parse(s).customData.estimationHours;
+      return typeof h === 'number' && isFinite(h) && h > 0 ? Math.round(h * 100) / 100 : null;
+    }).catch(function () { return null; });
+  } catch (e) { p = Promise.resolve(null); }
+  _pwCache.set(m[1], p);
+  return p;
+}
+
+// Effective hours: own value if set (0 = explicitly cleared), otherwise Planyway estimate.
+function effectiveHours(own, desc) {
+  if (typeof own === 'number') return Promise.resolve(own > 0 ? own : null);
+  return planywayHours(desc);
+}

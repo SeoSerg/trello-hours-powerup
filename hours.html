@@ -12,10 +12,13 @@
 <script src="js/common.js"></script>
 <script>
 var t = TrelloPowerUp.iframe();
-var input = document.getElementById('h'), err = document.getElementById('err');
+var input = document.getElementById('h'), err = document.getElementById('err'), hasPlanyway = false;
 t.render(function () {
-  return t.get('card', 'shared', HOURS_KEY).then(function (h) {
-    if (document.activeElement !== input) { input.value = typeof h === 'number' ? fmtHours(h) : ''; input.focus(); input.select(); }
+  return Promise.all([t.get('card', 'shared', HOURS_KEY), t.card('desc')]).then(function (r) {
+    return Promise.all([effectiveHours(r[0], r[1].desc), planywayHours(r[1].desc)]);
+  }).then(function (r) {
+    hasPlanyway = r[1] != null;
+    if (document.activeElement !== input) { input.value = r[0] != null ? fmtHours(r[0]) : ''; input.focus(); input.select(); }
     return t.sizeTo('#f');
   });
 });
@@ -23,7 +26,7 @@ document.getElementById('f').addEventListener('submit', function (e) {
   e.preventDefault();
   var v = parseHours(input.value);
   if (Number.isNaN(v)) { err.textContent = 'Введите число, например 8 или 2.5'; return; }
-  var p = v === null ? t.remove('card', 'shared', HOURS_KEY) : t.set('card', 'shared', HOURS_KEY, v);
+  var p = v === null ? (hasPlanyway ? t.set('card', 'shared', HOURS_KEY, 0) : t.remove('card', 'shared', HOURS_KEY)) : t.set('card', 'shared', HOURS_KEY, v);
   p.then(function () { return t.closePopup(); }, function (x) { err.textContent = 'Не удалось сохранить: ' + (x && x.message || x); });
 });
 </script>

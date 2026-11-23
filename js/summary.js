@@ -12,7 +12,7 @@ function loadHours(cards) {
     var chunk = cards.slice(i, i + 50); i += 50;
     if (!chunk.length) return Promise.resolve(out);
     return Promise.all(chunk.map(function (c) {
-      return t.get(c.id, 'shared', HOURS_KEY).then(function (h) { c.hours = typeof h === 'number' ? h : null; out.push(c); });
+      return t.get(c.id, 'shared', HOURS_KEY).then(function (h) { return effectiveHours(h, c.desc); }).then(function (h) { c.hours = h; delete c.desc; out.push(c); });
     })).then(next);
   }
   return next();
@@ -118,7 +118,7 @@ document.getElementById('copyCards').onclick = function () {
   copy(toTSV(rows), 'copyCardsMsg');
 };
 
-Promise.all([t.lists('id', 'name'), t.cards('id', 'name', 'idList', 'labels', 'members', 'url')])
+Promise.all([t.lists('id', 'name'), t.cards('id', 'name', 'idList', 'labels', 'members', 'url', 'desc')])
   .then(function (r) {
     state.lists = r[0];
     return loadHours(r[1]).then(function (cards) { state.cards = cards; });
