@@ -1,5 +1,6 @@
 /* global TrelloPowerUp, HOURS_KEY, fmtHoursRu */
 var t = TrelloPowerUp.iframe();
+var MAX_LISTS = 10;
 var state = { lists: [], cards: [], selected: null };
 
 function el(tag, text, cls) { var e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; }
@@ -76,7 +77,7 @@ function listTotals() {
 }
 
 function render() {
-  var totals = listTotals();
+  var totals = listTotals().slice(0, MAX_LISTS);
   var allCount = 0, allSum = 0;
   var rows = totals.map(function (x) { allCount += x.count; allSum += x.sum; return { key: x.list.id, cells: [x.list.name, String(x.count), fmtHoursRu(x.sum)], numCols: [1] }; });
   fillRows(document.querySelector('#lists tbody'), rows, select, state.selected);
@@ -89,10 +90,11 @@ function render() {
   sel.value = state.selected;
 
   var cs = selectedCards();
-  var sum = cs.reduce(function (s, c) { return s + c.hours; }, 0);
-  fillRows(document.querySelector('#byLabel tbody'), groupSum(cs, function (c) { return (c.labels || []).map(labelName); }, 'Без метки')
+  var rated = cs.filter(function (c) { return c.hours != null; });
+  var sum = rated.reduce(function (s, c) { return s + c.hours; }, 0);
+  fillRows(document.querySelector('#byLabel tbody'), groupSum(rated, function (c) { return (c.labels || []).map(labelName); }, 'Без метки')
     .map(function (e) { return { cells: [e[0], fmtHoursRu(e[1])] }; }));
-  fillRows(document.querySelector('#byMember tbody'), groupSum(cs, function (c) { return (c.members || []).map(memberName); }, 'Без участника')
+  fillRows(document.querySelector('#byMember tbody'), groupSum(rated, function (c) { return (c.members || []).map(memberName); }, 'Без участника')
     .map(function (e) { return { cells: [e[0], fmtHoursRu(e[1])] }; }));
 
   var tbody = document.querySelector('#cards tbody'); tbody.textContent = '';
@@ -101,7 +103,7 @@ function render() {
     var td = el('td'); td.appendChild(a); tr.appendChild(td);
     tr.appendChild(el('td', (c.labels || []).map(labelName).join(', ')));
     tr.appendChild(el('td', (c.members || []).map(memberName).join(', ')));
-    tr.appendChild(el('td', fmtHoursRu(c.hours), 'num'));
+    tr.appendChild(el('td', fmtHoursRu(c.hours || 0), 'num'));
     tbody.appendChild(tr);
   });
   var tot = el('tr', null, 'total'); tot.appendChild(el('td', 'Итого: ' + cs.length)); tot.appendChild(el('td')); tot.appendChild(el('td')); tot.appendChild(el('td', fmtHoursRu(sum), 'num'));
@@ -109,8 +111,8 @@ function render() {
 }
 
 function selectedCards() {
-  return state.cards.filter(function (c) { return c.idList === state.selected && c.hours != null; })
-    .sort(function (a, b) { return b.hours - a.hours; });
+  return state.cards.filter(function (c) { return c.idList === state.selected; })
+    .sort(function (a, b) { return (b.hours || 0) - (a.hours || 0); });
 }
 
 function select(id) { state.selected = id; render(); }
@@ -135,14 +137,14 @@ function copy(text, msgId) {
 document.getElementById('copyLists').onclick = function () {
   var rows = [['Колонка', 'Карточек с часами', 'Часы']];
   var c = 0, s = 0;
-  listTotals().forEach(function (x) { c += x.count; s += x.sum; rows.push([x.list.name, x.count, fmtHoursRu(x.sum)]); });
+  listTotals().slice(0, MAX_LISTS).forEach(function (x) { c += x.count; s += x.sum; rows.push([x.list.name, x.count, fmtHoursRu(x.sum)]); });
   copy(toTSV(rows), 'copyListsMsg');
 };
 document.getElementById('copyCards').onclick = function () {
   var cs = selectedCards();
   var rows = [['Карточка', 'Метки', 'Участники', 'Часы', 'Ссылка']];
-  cs.forEach(function (c) { rows.push([c.name, (c.labels || []).map(labelName).join(', '), (c.members || []).map(memberName).join(', '), fmtHoursRu(c.hours), c.url]); });
-  rows.push(['Итого', '', '', fmtHoursRu(cs.reduce(function (s, c) { return s + c.hours; }, 0)), '']);
+  cs.forEach(function (c) { rows.push([c.name, (c.labels || []).map(labelName).join(', '), (c.members || []).map(memberName).join(', '), fmtHoursRu(c.hours || 0), c.url]); });
+  rows.push(['Итого', '', '', fmtHoursRu(cs.reduce(function (s, c) { return s + (c.hours || 0); }, 0)), '']);
   copy(toTSV(rows), 'copyCardsMsg');
 };
 
