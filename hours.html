@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru"><head><meta charset="utf-8"><title>Часы</title>
-<link rel="stylesheet" href="css/style.css?v=1795438962">
+<link rel="stylesheet" href="css/style.css?v=1795440228">
 <script src="https://p.trellocdn.com/power-up.min.js"></script></head>
 <body>
 <form id="f">
@@ -8,17 +8,27 @@
   <input type="text" id="h" inputmode="decimal" autocomplete="off" placeholder="например, 2.5">
   <div id="err" class="error muted" style="min-height:18px"></div>
   <div class="row"><button class="primary" type="submit">Сохранить</button><span class="muted">Пустое поле — удалить часы</span></div>
+  <div id="hist" hidden><h2 style="font-size:13px;margin:12px 0 4px">История изменений</h2><table><tbody id="histBody"></tbody></table></div>
 </form>
-<script src="js/common.js?v=1795438962"></script>
+<script src="js/common.js?v=1795440228"></script>
 <script>
 var t = TrelloPowerUp.iframe();
-var input = document.getElementById('h'), err = document.getElementById('err'), hasPlanyway = false;
+var input = document.getElementById('h'), err = document.getElementById('err'), hasPlanyway = false, current = null, log = [];
 t.render(function () {
-  return Promise.all([t.get('card', 'shared', HOURS_KEY), t.card('desc')]).then(function (r) {
-    return Promise.all([effectiveHours(r[0], r[1].desc), planywayHours(r[1].desc)]);
+  return Promise.all([t.get('card', 'shared'), t.card('desc')]).then(function (r) {
+    var data = r[0] || {};
+    log = Array.isArray(data[LOG_KEY]) ? data[LOG_KEY] : [];
+    return Promise.all([effectiveHours(data[HOURS_KEY], r[1].desc), planywayHours(r[1].desc)]);
   }).then(function (r) {
-    hasPlanyway = r[1] != null;
-    if (document.activeElement !== input) { input.value = r[0] != null ? fmtHours(r[0]) : ''; input.focus(); input.select(); }
+    current = r[0]; hasPlanyway = r[1] != null;
+    if (document.activeElement !== input) { input.value = current != null ? fmtHours(current) : ''; input.focus(); input.select(); }
+    var body = document.getElementById('histBody'); body.textContent = '';
+    log.slice(-10).reverse().forEach(function (e) {
+      var tr = document.createElement('tr');
+      [fmtWhen(e.at), e.by || '?', fmtChange(e)].forEach(function (x, i) { var td = document.createElement('td'); td.textContent = x; td.className = 'muted' + (i === 2 ? ' num' : ''); tr.appendChild(td); });
+      body.appendChild(tr);
+    });
+    document.getElementById('hist').hidden = !log.length;
     return t.sizeTo('#f');
   });
 });
@@ -26,8 +36,12 @@ document.getElementById('f').addEventListener('submit', function (e) {
   e.preventDefault();
   var v = parseHours(input.value);
   if (Number.isNaN(v)) { err.textContent = 'Введите число, например 8 или 2.5'; return; }
-  var p = v === null ? (hasPlanyway ? t.set('card', 'shared', HOURS_KEY, 0) : t.remove('card', 'shared', HOURS_KEY)) : t.set('card', 'shared', HOURS_KEY, v);
-  p.then(function () { return t.closePopup(); }, function (x) { err.textContent = 'Не удалось сохранить: ' + (x && x.message || x); });
+  if (v === current) { t.closePopup(); return; }
+  t.member('fullName', 'username').then(function (m) {
+    var newLog = appendLog(log, { f: current, t: v, by: m.fullName || m.username, at: Date.now() });
+    var data = {}; data[HOURS_KEY] = v === null ? 0 : v; data[LOG_KEY] = newLog;
+    return t.set('card', 'shared', data);
+  }).then(function () { return t.closePopup(); }, function (x) { err.textContent = 'Не удалось сохранить: ' + (x && x.message || x); });
 });
 </script>
 </body></html>

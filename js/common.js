@@ -44,3 +44,20 @@ function effectiveHours(own, desc) {
   if (typeof own === 'number') return Promise.resolve(own > 0 ? own : null);
   return planywayHours(desc);
 }
+
+// Change history, stored next to the hours in the same card data: [{f: was, t: became, by: name, at: ms}].
+var LOG_KEY = 'log';
+function appendLog(log, entry) {
+  var out = (Array.isArray(log) ? log : []).concat([entry]);
+  while (out.length > 1 && JSON.stringify({ hours: 0, log: out }).length > 3600) out.shift();
+  return out;
+}
+function fmtWhen(ms) {
+  var d = new Date(ms);
+  function p(n) { return (n < 10 ? '0' : '') + n; }
+  return p(d.getDate()) + '.' + p(d.getMonth() + 1) + '.' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+function fmtChange(e) {
+  function v(x) { return x == null || x === 0 ? '—' : fmtHoursRu(x); }
+  return v(e.f) + ' → ' + v(e.t);
+}

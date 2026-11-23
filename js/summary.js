@@ -1,7 +1,7 @@
 /* global TrelloPowerUp, HOURS_KEY, fmtHoursRu */
 var t = TrelloPowerUp.iframe();
 var MAX_LISTS = 10;
-var state = { lists: [], cards: [], selected: null };
+var state = { lists: [], cards: [], selected: null, log: [] };
 
 function el(tag, text, cls) { var e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; }
 function labelName(l) { return l.name || ('(' + (l.color || 'без цвета') + ')'); }
@@ -13,7 +13,10 @@ function loadHours(cards) {
     var chunk = cards.slice(i, i + 50); i += 50;
     if (!chunk.length) return Promise.resolve(out);
     return Promise.all(chunk.map(function (c) {
-      return t.get(c.id, 'shared', HOURS_KEY).then(function (own) {
+      return t.get(c.id, 'shared').then(function (data) {
+        data = data || {};
+        var own = data[HOURS_KEY];
+        (Array.isArray(data[LOG_KEY]) ? data[LOG_KEY] : []).forEach(function (e) { state.log.push({ e: e, card: c }); });
         c.own = typeof own === 'number' ? own : null;
         return effectiveHours(own, c.desc);
       }).then(function (h) { c.hours = h; delete c.desc; out.push(c); });
@@ -115,6 +118,21 @@ function selectedCards() {
     .sort(function (a, b) { return (b.hours || 0) - (a.hours || 0); });
 }
 
+function renderLog() {
+  var body = document.querySelector('#log tbody'); body.textContent = '';
+  var items = state.log.slice().sort(function (a, b) { return b.e.at - a.e.at; }).slice(0, 30);
+  document.getElementById('logEmpty').hidden = !!items.length;
+  items.forEach(function (x) {
+    var tr = el('tr');
+    tr.appendChild(el('td', fmtWhen(x.e.at)));
+    tr.appendChild(el('td', x.e.by || '?'));
+    var a = el('a', x.card.name); a.href = x.card.url; a.onclick = function (ev) { ev.preventDefault(); t.showCard(x.card.id); };
+    var td = el('td'); td.appendChild(a); tr.appendChild(td);
+    tr.appendChild(el('td', fmtChange(x.e), 'num'));
+    body.appendChild(tr);
+  });
+}
+
 function select(id) { state.selected = id; render(); }
 
 function toTSV(rows) {
@@ -159,6 +177,7 @@ Promise.all([t.lists('id', 'name'), t.cards('id', 'name', 'idList', 'labels', 'm
     document.getElementById('status').hidden = true;
     document.getElementById('app').hidden = false;
     render();
+    renderLog();
     var perm = t.getContext && t.getContext().permissions; return perm && perm.board && perm.board !== 'write' ? null : saveToOwn();
   })
   .catch(function (e) { var s = document.getElementById('status'); s.textContent = 'Ошибка загрузки: ' + (e && e.message || e); s.className = 'error'; });
