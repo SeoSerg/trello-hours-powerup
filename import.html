@@ -4,7 +4,9 @@
 <script src="https://p.trellocdn.com/power-up.min.js"></script></head>
 <body>
 <div id="step1">
-  <p>Вставьте JSON вида <code>{"idКарточки": часы}</code> или выберите файл. Пишутся только часы этого улучшения; описания карточек и данные Planyway не меняются.</p>
+  <p>Пишутся только часы этого улучшения. Описания карточек и данные Planyway не меняются.</p>
+  <div class="row" style="margin-bottom:8px"><button id="fromPlanyway" class="primary">Взять оценки Planyway с этой доски</button><span id="pwMsg" class="muted"></span></div>
+  <p class="muted">Или вставьте JSON вида <code>{"idКарточки": часы}</code> / выберите файл:</p>
   <div class="row" style="margin-bottom:8px"><input type="file" id="file" accept=".json,application/json"></div>
   <textarea id="json" placeholder='{"6aff16c73f372c1b2a97d8a5": 22}'></textarea>
   <div id="err1" class="error"></div>

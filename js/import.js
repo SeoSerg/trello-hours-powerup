@@ -122,3 +122,34 @@ $('run').onclick = function () {
     }
   });
 };
+
+// Read Planyway estimates straight from card descriptions on this board (read-only).
+function decodePlanyway(desc) {
+  var m = (desc || '').match(/planyway\.com\/?\?cardData=([A-Za-z0-9+/=_%-]+)/);
+  if (!m) return Promise.resolve(null);
+  var b64 = decodeURIComponent(m[1]).replace(/-/g, '+').replace(/_/g, '/');
+  var bin = atob(b64), bytes = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  var stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
+  return new Response(stream).text().then(JSON.parse);
+}
+
+$('fromPlanyway').onclick = function () {
+  var msg = $('pwMsg'); msg.className = 'muted'; msg.textContent = 'Читаю карточки…';
+  $('fromPlanyway').disabled = true;
+  t.cards('id', 'desc').then(function (cards) {
+    var out = {}, bad = 0;
+    return Promise.all(cards.map(function (c) {
+      return decodePlanyway(c.desc).then(function (d) {
+        var h = d && d.customData && d.customData.estimationHours;
+        if (typeof h === 'number' && isFinite(h) && h > 0) out[c.id] = Math.round(h * 100) / 100;
+      }, function () { bad++; });
+    })).then(function () {
+      var n = Object.keys(out).length;
+      $('json').value = JSON.stringify(out, null, 1);
+      msg.className = n ? 'ok muted' : 'error muted';
+      msg.textContent = 'Найдено оценок: ' + n + (bad ? ', не удалось прочитать: ' + bad : '') + '. Нажмите «Проверить».';
+    });
+  }).catch(function (e) { msg.className = 'error muted'; msg.textContent = 'Ошибка: ' + (e && e.message || e); })
+    .then(function () { $('fromPlanyway').disabled = false; });
+};
