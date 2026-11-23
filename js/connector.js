@@ -29,9 +29,7 @@ TrelloPowerUp.initialize({
   'card-detail-badges': function (t) {
     return cardHours(t).then(function (h) {
       var has = h != null;
-      var b = { title: 'Часы', text: has ? fmtHours(h) + 'h' : 'Добавить', callback: openEditor };
-      if (!has) b.color = 'light-gray';
-      return [b];
+      return [{ title: 'Часы', text: has ? fmtHours(h) + 'h' : 'Добавить', color: has ? 'blue' : 'light-gray', callback: openEditor }];
     }, function (e) {
       return [{ title: 'Часы', text: 'ошибка: ' + String(e && e.message || e).slice(0, 80), color: 'red', callback: openEditor }];
     });
